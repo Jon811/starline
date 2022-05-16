@@ -38,7 +38,7 @@ setup(
     author_email='anonym.tsk@gmail.com',
 
     install_requires=[
-        'aiohttp>=3.6.1'
+        'requests>=2.25.0'
     ],
 
     packages=['starline'],

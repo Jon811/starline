@@ -47,28 +47,6 @@ class StarlineApi(BaseApi):
 
         self._call_listeners()
 
-    def update_obd(self) -> None:
-        """Update OBD data."""
-        if not self._available:
-            return None
-
-        url = "https://developer.starline.ru/json/v1/device/{}/obd_params"
-        headers = {"Cookie": "slnet=" + self._slnet_token}
-        for device_id in self._devices:
-            response = self._get(url.format(device_id), headers=headers)
-            if response is None:
-                continue
-
-            code = int(response["code"])
-            if code != 200:
-                continue
-
-            data = response["obd_params"]
-            if "errors" in data and data["errors"] and data["errors"]["val"] > 0:
-                data["errors"]["errors"] = self.get_obd_errors(device_id)
-
-            self._devices[device_id].update_obd(data)
-
     @property
     def devices(self) -> Dict[str, StarlineDevice]:
         """Devices list."""
@@ -81,7 +59,7 @@ class StarlineApi(BaseApi):
 
     def get_user_info(self) -> Optional[List[Dict[str, Any]]]:
         """Get user information."""
-        url = "https://developer.starline.ru/json/v2/user/{}/user_info".format(self._user_id)
+        url = "https://developer.starline.ru/json/v3/user/{}/data".format(self._user_id)
         headers = {"Cookie": "slnet=" + self._slnet_token}
         response = self._get(url, headers=headers)
         if response is None:
@@ -89,7 +67,7 @@ class StarlineApi(BaseApi):
 
         code = int(response["code"])
         if code == 200:
-            return response["devices"] + response["shared_devices"]
+            return response["user_data"]["devices"] + response["user_data"]["shared_devices"]
         return None
 
     def get_obd_errors(self, device_id: str) -> Optional[List[Dict[str, Any]]]:
