@@ -29,13 +29,13 @@ setup(
     version=find_version('starline', '__init__.py'),
     description='Unofficial python library for StarLine API',
     long_description=long_description,
-    url='https://github.com/Anonym-tsk/starline/',
+    url='https://github.com/Jon811/starline/',
     license='Apache License 2.0',
 
     keywords='starline car security',
 
-    author='Nikolay Vasilchuk',
-    author_email='anonym.tsk@gmail.com',
+    author='Evgeniy Ulitin',
+    author_email='jon8111@gmail.com',
 
     install_requires=[
         'requests>=2.25.0'
