@@ -35,6 +35,7 @@ class StarlineDevice:
         self._fuel: Dict[str, Any] = {}
         self._errors: Dict[str, Any] = {}
         self._mileage: Dict[str, Any] = {}
+        self._motohrs: Dict[str, Any] = {}
 
     def update(self, device_data):
         """Update data from server."""
@@ -55,6 +56,7 @@ class StarlineDevice:
         self._car_alr_state = device_data.get("car_alr_state", {})
         self._functions = device_data.get("functions", [])
         self._position = device_data.get("position")
+        self._motohrs = device_data.get("motohrs")
 
     def update_obd(self, obd_info):
         """Update OBD data from server."""
@@ -199,3 +201,8 @@ class StarlineDevice:
     def mileage(self):
         """Device mileage count."""
         return self._mileage
+        
+    @property
+    def motohrs(self):
+        """Device motohrs count."""
+        return self._motohrs
