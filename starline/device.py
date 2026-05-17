@@ -36,27 +36,50 @@ class StarlineDevice:
         self._errors: Dict[str, Any] = {}
         self._mileage: Dict[str, Any] = {}
         self._motohrs: Dict[str, Any] = {}
-
     def update(self, device_data):
-        """Update data from server."""
-        self._device_id = str(device_data.get("device_id"))
-        self._imei = device_data.get("imei")
-        self._alias = device_data.get("alias")
-        self._battery = device_data.get("battery")
-        self._ctemp = device_data.get("ctemp", device_data.get("mayak_temp"))
-        self._etemp = device_data.get("etemp")
-        self._fw_version = device_data.get("fw_version")
-        self._gsm_lvl = device_data.get("gsm_lvl")
-        self._phone = device_data.get("phone")
-        self._status = device_data.get("status")
-        self._ts_activity = device_data.get("ts_activity")
-        self._typename = device_data.get("typename")
-        self._balance = device_data.get("balance", {})
-        self._car_state = device_data.get("car_state", {})
-        self._car_alr_state = device_data.get("car_alr_state", {})
-        self._functions = device_data.get("functions", [])
-        self._position = device_data.get("position")
-        self._motohrs = device_data.get("motohrs")
+        """Обновление данных устройства из нового JSON."""
+        # Генерируем временную метку для логов
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        _LOGGER.debug(f"[{current_time}] [StarlineDevice] Начало разбора JSON для устройства {self.name}")
+
+        try:
+            # Парсим новую структуру (данные лежат внутри ключа "data", если он есть, 
+            # либо device_data уже является словарем "data")
+            data = device_data.get("data", device_data)
+            
+            self._imei = data.get("imei")
+            self._alias = data.get("alias")
+            
+            # Маппинг телематики из блока common и obd
+            common_data = data.get("common", {})
+            obd_data = data.get("obd", {})
+            
+            self._battery = common_data.get("battery")
+            self._ctemp = common_data.get("ctemp")
+            self._etemp = common_data.get("etemp")
+            self._fuel_percent = obd_data.get("fuel_percent")
+
+            # Маппинг статусов. Сохраняем в _car_state, чтобы не ломать старый код HA!
+            self._car_state = data.get("state", {})
+            self._car_alrm_state = data.get("alarm_state", {})
+            
+            # Вытягиваем моточасы напрямую
+            self._motohrs = self._car_state.get("motohrs")
+            
+            self._fw_version = data.get("firmware_version")
+            self._gsm_lvl = common_data.get("gsm_lvl")
+            self._phone = data.get("telephone")
+            self._status =  data.get("status")
+            self._ts_activity = data.get("activity_ts")
+            self._typename = data.get("typename")
+            self._balance = data.get("balance", {})
+            self._functions = data.get("functions", [])
+            self._position = data.get("position")
+            self._mileage = obd_data.get("mileage")
+            _LOGGER.debug(f"[{current_time}] [StarlineDevice] Успешно распарсено: Батарея={self._battery}, Моточасы={self._motohrs}")
+
+        except Exception as e:
+            _LOGGER.error(f"[{current_time}] [StarlineDevice] Ошибка разбора JSON: {e}", exc_info=True)
 
     def update_obd(self, obd_info):
         """Update OBD data from server."""
