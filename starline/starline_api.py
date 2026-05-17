@@ -114,7 +114,7 @@ class StarlineApi(BaseApi):
         return self._available
 
     def get_user_info(self) -> Optional[List[Dict[str, Any]]]:
-"""Get user information (Modified for v1 API with extended parameters)."""
+        """Get user information (Modified for v1 API with extended parameters)."""
         from datetime import datetime
         
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
