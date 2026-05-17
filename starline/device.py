@@ -122,7 +122,16 @@ class StarlineDevice:
             if "state" in data:
                 self._car_state = data["state"]
                 self._motohrs = self._car_state.get("motohrs")/60
-                
+                # Агрегация всех дверей в один общий статус
+                any_door_open = (
+                    self._car_state.get("door", False) or 
+                    self._car_state.get("front_pass_door", False) or 
+                    self._car_state.get("rear_left_door", False) or 
+                    self._car_state.get("rear_right_door", False)
+                )
+                # Принудительно перезаписываем главный ключ "door", 
+                # который читает Home Assistant
+                self._car_state["door"] = any_door_open
             if "alarm_state" in data:
                 self._car_alrm_state = data["alarm_state"]
                 
