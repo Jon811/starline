@@ -9,7 +9,7 @@ from .const import (
     DEVICE_FUNCTION_STATE,
 )
 from datetime import datetime
-from logging import logging
+import logging
 _LOGGER = logging.getLogger(__name__)
 
 class StarlineDevice:
