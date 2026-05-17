@@ -121,7 +121,7 @@ class StarlineDevice:
             # 7. СОСТОЯНИЯ И МОТОЧАСЫ
             if "state" in data:
                 self._car_state = data["state"]
-                self._motohrs = self._car_state.get("motohrs")
+                self._motohrs = self._car_state.get("motohrs")/60
                 
             if "alarm_state" in data:
                 self._car_alrm_state = data["alarm_state"]
