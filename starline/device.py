@@ -41,10 +41,16 @@ class StarlineDevice:
         
     def update(self, device_data):
         """Update device data from API response."""
+        import logging
+        from datetime import datetime
+        _LOGGER = logging.getLogger(__name__)
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        
+        # Распаковываем ответ
         data = device_data.get("data", device_data)
         
         try:
-            # 1. ИДЕНТИФИКАТОРЫ (Критично для HA, чтобы не было дублей)
+            # 1. БАЗОВЫЕ ИДЕНТИФИКАТОРЫ
             if "device_id" in data:
                 self._device_id = str(data["device_id"])
             if "imei" in data:
@@ -57,24 +63,29 @@ class StarlineDevice:
                 self._status = int(data["status"])
             if "firmware_version" in data:
                 self._fw_version = data["firmware_version"]
+            if "telephone" in data:
+                self._phone = data["telephone"]
+                
+            # 2. ФУНКЦИИ (Критично важно для появления switch и button в HA!)
+            if "functions" in data:
+                self._functions = data["functions"]
 
-            # 2. ПОЗИЦИЯ НА КАРТЕ
+            # 3. ПОЗИЦИЯ НА КАРТЕ
             if "position" in data:
                 self._position = data["position"]
 
-            # 3. БАЛАНС (Исправление ошибки с List)
+            # 4. БАЛАНС (Адаптация списка v3 под структуру v2)
             if "balance" in data:
                 balance_data = data["balance"]
-                # Если это список (как в v3) - берем первую сим-карту
-                if isinstance(balance_data, list) and len(balance_data) > 0:
-                    self._balance = balance_data[0]
-                # Если это словарь (как в v2) - берем как есть
+                if isinstance(balance_data, list):
+                    # Превращаем список в словарь с ключами (например, 'active')
+                    self._balance = {item.get("key", "active"): item for item in balance_data}
                 elif isinstance(balance_data, dict):
                     self._balance = balance_data
                 else:
                     self._balance = {}
 
-            # 4. ТЕЛЕМАТИКА (Температура, батарея)
+            # 5. ТЕЛЕМАТИКА (Температура, батарея, связь)
             common = data.get("common", {})
             if "battery" in common:
                 self._battery = common["battery"]
@@ -82,24 +93,30 @@ class StarlineDevice:
                 self._ctemp = common["ctemp"]
             if "etemp" in common:
                 self._etemp = common["etemp"]
+            if "gsm_lvl" in common:
+                self._gsm_level = common["gsm_lvl"] 
+            if "gps_lvl" in common:
+                self._gps_level = common["gps_lvl"] 
 
-            # 5. OBD (Топливо)
+            # 6. OBD (Топливо, пробег)
             obd = data.get("obd", {})
             if "fuel_percent" in obd:
                 self._fuel_percent = obd["fuel_percent"]
+            if "mileage" in obd:
+                self._mileage = obd["mileage"]
 
-            # 6. СОСТОЯНИЯ И МОТОЧАСЫ
+            # 7. СОСТОЯНИЯ И МОТОЧАСЫ
             if "state" in data:
                 self._car_state = data["state"]
                 self._motohrs = self._car_state.get("motohrs")
                 
             if "alarm_state" in data:
                 self._car_alrm_state = data["alarm_state"]
+                
+            _LOGGER.debug(f"[{current_time}] [StarlineDevice] Успешно распарсены все расширенные данные для {self._device_id}")
 
         except Exception as e:
-            import logging
-            _LOGGER = logging.getLogger(__name__)
-            _LOGGER.error(f"[StarlineDevice] Ошибка разбора данных: {e}", exc_info=True)
+            _LOGGER.error(f"[{current_time}] [StarlineDevice] Ошибка разбора данных v3: {e}", exc_info=True)
 
     def update_obd(self, obd_info):
         """Update OBD data from server."""
