@@ -112,9 +112,11 @@ class StarlineDevice:
             # 6. OBD (Топливо, пробег)
             obd = data.get("obd", {})
             if "fuel_percent" in obd:
-                self._fuel_percent = obd["fuel_percent"]
+                # В старом API топливо тоже было словарем с ключом val
+                self._fuel_percent = {"val": obd["fuel_percent"]} 
             if "mileage" in obd:
-                self._mileage = obd["mileage"]
+                # Оборачиваем число в словарь, чтобы работал метод get("val")
+                self._mileage = {"val": obd["mileage"]}
 
             # 7. СОСТОЯНИЯ И МОТОЧАСЫ
             if "state" in data:
