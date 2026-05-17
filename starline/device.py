@@ -38,50 +38,68 @@ class StarlineDevice:
         self._errors: Dict[str, Any] = {}
         self._mileage: Dict[str, Any] = {}
         self._motohrs: Dict[str, Any] = {}
+        
     def update(self, device_data):
-        """Обновление данных устройства из нового JSON."""
-        # Генерируем временную метку для логов
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        _LOGGER.debug(f"[{current_time}] [StarlineDevice] Начало разбора JSON для устройства {self.name}")
-
+        """Update device data from API response."""
+        data = device_data.get("data", device_data)
+        
         try:
-            # Парсим новую структуру (данные лежат внутри ключа "data", если он есть, 
-            # либо device_data уже является словарем "data")
-            data = device_data.get("data", device_data)
-            
-            self._imei = data.get("imei")
-            self._alias = data.get("alias")
-            
-            # Маппинг телематики из блока common и obd
-            common_data = data.get("common", {})
-            obd_data = data.get("obd", {})
-            
-            self._battery = common_data.get("battery")
-            self._ctemp = common_data.get("ctemp")
-            self._etemp = common_data.get("etemp")
-            self._fuel_percent = obd_data.get("fuel_percent")
+            # 1. ИДЕНТИФИКАТОРЫ (Критично для HA, чтобы не было дублей)
+            if "device_id" in data:
+                self._device_id = str(data["device_id"])
+            if "imei" in data:
+                self._imei = data["imei"]
+            if "alias" in data:
+                self._alias = data["alias"]
+            if "typename" in data:
+                self._typename = data["typename"]
+            if "status" in data:
+                self._status = int(data["status"])
+            if "firmware_version" in data:
+                self._fw_version = data["firmware_version"]
 
-            # Маппинг статусов. Сохраняем в _car_state, чтобы не ломать старый код HA!
-            self._car_state = data.get("state", {})
-            self._car_alrm_state = data.get("alarm_state", {})
-            
-            # Вытягиваем моточасы напрямую
-            self._motohrs = self._car_state.get("motohrs")
-            
-            self._fw_version = data.get("firmware_version")
-            self._gsm_lvl = common_data.get("gsm_lvl")
-            self._phone = data.get("telephone")
-            self._status =  data.get("status")
-            self._ts_activity = data.get("activity_ts")
-            self._typename = data.get("typename")
-            self._balance = data.get("balance", {})
-            self._functions = data.get("functions", [])
-            self._position = data.get("position")
-            self._mileage = obd_data.get("mileage")
-            _LOGGER.debug(f"[{current_time}] [StarlineDevice] Успешно распарсено: Батарея={self._battery}, Моточасы={self._motohrs}")
+            # 2. ПОЗИЦИЯ НА КАРТЕ
+            if "position" in data:
+                self._position = data["position"]
+
+            # 3. БАЛАНС (Исправление ошибки с List)
+            if "balance" in data:
+                balance_data = data["balance"]
+                # Если это список (как в v3) - берем первую сим-карту
+                if isinstance(balance_data, list) and len(balance_data) > 0:
+                    self._balance = balance_data[0]
+                # Если это словарь (как в v2) - берем как есть
+                elif isinstance(balance_data, dict):
+                    self._balance = balance_data
+                else:
+                    self._balance = {}
+
+            # 4. ТЕЛЕМАТИКА (Температура, батарея)
+            common = data.get("common", {})
+            if "battery" in common:
+                self._battery = common["battery"]
+            if "ctemp" in common:
+                self._ctemp = common["ctemp"]
+            if "etemp" in common:
+                self._etemp = common["etemp"]
+
+            # 5. OBD (Топливо)
+            obd = data.get("obd", {})
+            if "fuel_percent" in obd:
+                self._fuel_percent = obd["fuel_percent"]
+
+            # 6. СОСТОЯНИЯ И МОТОЧАСЫ
+            if "state" in data:
+                self._car_state = data["state"]
+                self._motohrs = self._car_state.get("motohrs")
+                
+            if "alarm_state" in data:
+                self._car_alrm_state = data["alarm_state"]
 
         except Exception as e:
-            _LOGGER.error(f"[{current_time}] [StarlineDevice] Ошибка разбора JSON: {e}", exc_info=True)
+            import logging
+            _LOGGER = logging.getLogger(__name__)
+            _LOGGER.error(f"[StarlineDevice] Ошибка разбора данных: {e}", exc_info=True)
 
     def update_obd(self, obd_info):
         """Update OBD data from server."""
