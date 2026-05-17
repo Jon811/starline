@@ -80,16 +80,60 @@ class StarlineApi(BaseApi):
         return self._available
 
     def get_user_info(self) -> Optional[List[Dict[str, Any]]]:
-        """Get user information."""
-        url = "https://developer.starline.ru/json/v2/user/{}/user_info".format(self._user_id)
+"""Get user information (Modified for v1 API with extended parameters)."""
+        from datetime import datetime
+        
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        
+        url = "https://developer.starline.ru/json/v1/user/{}/deviceList?imei=true&alias=true&pos=true&status=true".format(self._user_id)
         headers = {"Cookie": "slnet=" + self._slnet_token}
+        
+        _LOGGER.debug(f"[{current_time}] [StarlineApi] [v1_DEVICE_LIST] Отправка запроса. URL: {url}")
+        
         response = self._get(url, headers=headers)
+        
+        current_time_end = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        
         if response is None:
+            _LOGGER.error(f"[{current_time_end}] [StarlineApi] [v1_DEVICE_LIST] Ошибка: Получен пустой ответ от сервера.")
             return None
 
-        code = int(response["code"])
+        try:
+            code = int(response.get("code", 0))
+        except ValueError:
+            code = 0
+
         if code == 200:
-            return response["devices"] + response["shared_devices"]
+            data = response.get("data", {})
+            devices = data.get("devices", [])
+            _LOGGER.debug(f"[{current_time_end}] [StarlineApi] [v1_DEVICE_LIST] Успех. Найдено устройств: {len(devices)}. Данные: {devices}")
+            return devices
+            
+        _LOGGER.warning(f"[{current_time_end}] [StarlineApi] [v1_DEVICE_LIST] Неожиданный код {code}. Ответ: {response}")
+        return None
+
+    def get_device_data_v3(self, device_id: str) -> Optional[dict]:
+        """Get extended device data via v3 API (Custom implementation)."""
+        from datetime import datetime
+        
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        
+        url = "https://developer.starline.ru/json/v3/device/{}/data".format(device_id)
+        headers = {"Cookie": "slnet=" + self._slnet_token}
+        _LOGGER.debug(f"[{current_time}] [StarlineApi] [v3_DATA] Запрос полной телематики для устройства {device_id}. URL: {url}")
+        response = self._get(url, headers=headers)
+        current_time_end = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        if response is None:
+            _LOGGER.error(f"[{current_time_end}] [StarlineApi] [v3_DATA] Ошибка: Пустой ответ для {device_id}")
+            return None
+        try:
+            code = int(response.get("code", 0))
+        except ValueError:
+            code = 0
+        if code == 200:
+            _LOGGER.debug(f"[{current_time_end}] [StarlineApi] [v3_DATA] Успех. Код 200 получен.")
+            return response
+        _LOGGER.warning(f"[{current_time_end}] [StarlineApi] [v3_DATA] Неожиданный код ответа {code}. Ответ: {response}")
         return None
 
     def get_obd_errors(self, device_id: str) -> Optional[List[Dict[str, Any]]]:
