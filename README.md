@@ -1,4 +1,2 @@
 # starline
-Unofficial python library for StarLine API
-
-
+Форк для поддержки моточасов, но надо еще править компоненты ядра HASS/starline
