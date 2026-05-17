@@ -74,12 +74,23 @@ class StarlineDevice:
             if "position" in data:
                 self._position = data["position"]
 
-            # 4. БАЛАНС (Адаптация списка v3 под структуру v2)
+            # 4. БАЛАНС (Адаптация списка v3 под структуру v2 и фикс времени)
             if "balance" in data:
                 balance_data = data["balance"]
                 if isinstance(balance_data, list):
-                    # Превращаем список в словарь с ключами (например, 'active')
-                    self._balance = {item.get("key", "active"): item for item in balance_data}
+                    parsed_balance = {}
+                    for item in balance_data:
+                        key = item.get("key", "active")
+                        
+                        # Превращаем Unix Timestamp (число) в строку ISO8601
+                        ts = item.get("ts")
+                        if isinstance(ts, (int, float)):
+                            from datetime import datetime, timezone
+                            # Конвертируем 1779009708 -> "2026-05-02T12:01:48+00:00"
+                            item["ts"] = datetime.fromtimestamp(ts, timezone.utc).isoformat()
+                            
+                        parsed_balance[key] = item
+                    self._balance = parsed_balance
                 elif isinstance(balance_data, dict):
                     self._balance = balance_data
                 else:
