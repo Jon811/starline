@@ -33,20 +33,54 @@ class StarlineApi(BaseApi):
         return dispose_
 
     def update(self) -> None:
-        """Update StarLine data."""
-        devices = self.get_user_info()
-        if not devices:
-            self._available = False
-        else:
-            self._available = True
+        """Update StarLine data (Optimized: 1 request per device)."""
+        import logging
+        from datetime import datetime
+        _LOGGER = logging.getLogger(__name__)
+
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        _LOGGER.debug(f"[{current_time}] [StarlineApi] Запуск цикла обновления...")
+
+        # 1. ИНИЦИАЛИЗАЦИЯ (Только 1 раз при старте или перезагрузке)
+        if not self._devices:
+            _LOGGER.debug(f"[{current_time}] [StarlineApi] Кэш пуст. Запрашиваем v1/deviceList...")
+            devices = self.get_user_info()
+            
+            if not devices:
+                self._available = False
+                _LOGGER.error(f"[{current_time}] [StarlineApi] Инициализация не удалась.")
+                return
+                
             for device_data in devices:
                 device_id = str(device_data["device_id"])
                 if device_id not in self._devices:
+                    from .device import StarlineDevice
                     self._devices[device_id] = StarlineDevice()
+                # Сохраняем alias и базовые данные
                 self._devices[device_id].update(device_data)
 
-        self._call_listeners()
+        # 2. РЕГУЛЯРНЫЙ ЦИКЛ (Только v3 запросы)
+        # Сбрасываем флаг перед опросом. Если хоть одна машина ответит - API живо.
+        any_success = False 
+        
+        for device_id, device in self._devices.items():
+            _LOGGER.debug(f"[{current_time}] [StarlineApi] Запрос v3 для {device_id}")
+            extended_data = self.get_device_data_v3(device_id)
+            
+            if extended_data:
+                any_success = True
+                device.update(extended_data)
+            else:
+                _LOGGER.warning(f"[{current_time}] [StarlineApi] Сбой v3 для {device_id}")
 
+        # Обновляем статус доступности всей интеграции на основе v3
+        self._available = any_success
+        
+        if not self._available:
+             _LOGGER.error(f"[{current_time}] [StarlineApi] Все запросы v3 завершились ошибкой. Интеграция недоступна.")
+
+        # Уведомляем Home Assistant
+        self._call_listeners()
     def update_obd(self) -> None:
         """Update OBD data."""
         if not self._available:
