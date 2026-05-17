@@ -105,7 +105,7 @@ class StarlineDevice:
             if "etemp" in common:
                 self._etemp = common["etemp"]
             if "gsm_lvl" in common:
-                self._gsm_level = common["gsm_lvl"] 
+                self._gsm_lvl = common["gsm_lvl"] 
             if "gps_lvl" in common:
                 self._gps_level = common["gps_lvl"] 
 
