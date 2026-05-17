@@ -8,7 +8,7 @@ from .const import (
     DEVICE_FUNCTION_POSITION,
     DEVICE_FUNCTION_STATE,
 )
-
+from datetime import datetime
 
 class StarlineDevice:
     """StarLine device class."""
